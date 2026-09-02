@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OS Installer Lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0a0f1c;color:#eaf0ff;font-family:Arial,sans-serif}
+.app{max-width:1100px;margin:auto;padding:20px}header{display:flex;justify-content:space-between;gap:15px;align-items:center}
+h1{margin:0 0 5px}.muted{color:#9da9c2}.card{background:#121a2a;border:1px solid #293752;border-radius:14px;padding:18px;margin:15px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap}button,select,input{font:inherit}button{background:#1b2943;color:white;border:1px solid #405273;border-radius:8px;padding:10px 14px;cursor:pointer}button:hover{background:#2a3b60}button.active{outline:2px solid #8199ff}
+select{background:#0a1120;color:white;border:1px solid #405273;padding:10px;border-radius:8px}
+#terminal{background:#03060b;border:1px solid #33405a;border-radius:10px;overflow:hidden;font-family:Consolas,monospace}
+#output{height:330px;overflow:auto;padding:14px;white-space:pre-wrap;line-height:1.55}
+.cmdbar{display:flex;gap:8px;padding:12px;border-top:1px solid #33405a;align-items:center}
+.prompt{color:#75e2a0;white-space:nowrap}.cmd{flex:1;background:transparent!important;border:0!important;outline:0;color:white;padding:4px!important;margin:0}
+#screen{min-height:330px;border-radius:10px;overflow:hidden;background:#eee;color:#111}
+.windows{font-family:Arial,sans-serif;background:#eef2f7;min-height:330px}.win-top{background:#dce3ec;padding:12px;display:flex;justify-content:space-between}.win-main{padding:28px}.win-card{background:white;border:1px solid #ccd4df;border-radius:10px;padding:20px;max-width:700px}.win-progress{height:12px;background:#d6dce5;border-radius:10px;overflow:hidden}.win-fill{height:100%;width:0;background:#3478d4}
+.linux-screen{background:#050505;color:#ddd;min-height:330px;padding:20px;font-family:Consolas,monospace;white-space:pre-wrap}
+.hidden{display:none}.tag{padding:7px 10px;border-radius:20px;background:#20304a;color:#a9bcff}
+.note{font-size:13px;color:#98a6c0}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div><h1>🖥️ OS Installer Lab</h1><div class="muted">Simulator installer dengan terminal dan tampilan OS berbeda.</div></div><span class="tag" id="mode">WINDOWS GUI</span></header>
+
+<div class="card">
+<h2>Pilih Sistem Operasi</h2>
+<div class="row">
+<button class="os active" data-os="Windows">🪟 Windows</button>
+<button class="os" data-os="Linux">🐧 Linux</button>
+<select id="version"></select>
+</div>
+</div>
+
+<div class="card">
+<h2>Terminal</h2>
+<div id="terminal">
+<div id="output"></div>
+<div class="cmdbar"><span class="prompt" id="prompt">C:\Installer&gt;</span><input id="cmd" class="cmd" autocomplete="off" spellcheck="false" placeholder="Ketik perintah..."></div>
+</div>
+<div class="row" style="margin-top:10px"><button id="focus">Focus</button><button id="clear">Clear</button></div>
+<p class="note">Konfigurasi IP/DNS dilakukan melalui terminal. Contoh: <b>ip set 192.168.1.10 255.255.255.0 192.168.1.1</b> dan <b>dns set 8.8.8.8</b>.</p>
+</div>
+
+<div class="card">
+<h2>Install</h2>
+<p id="installInfo" class="muted"></p>
+<button id="install">▶ Install OS</button>
+<p class="note">Instalasi di halaman ini adalah simulasi. Browser tidak dapat memformat disk atau memasang OS sungguhan tanpa lingkungan boot/backend khusus.</p>
+</div>
+
+<div class="card">
+<h2>Tampilan Sistem Operasi</h2>
+<div id="screen"></div>
+</div>
+</div>
+
+<script>
+const versions={Windows:["Windows 11","Windows 10"],Linux:["Ubuntu 24.04 LTS","Debian 12","Linux Mint 22"]};
+let os="Windows", net={ip:"DHCP",mask:"-",gw:"-",dns:"Automatic"};
+const output=document.getElementById("output"),cmd=document.getElementById("cmd"),version=document.getElementById("version"),screen=document.getElementById("screen");
+
+function print(x){let d=document.createElement("div");d.textContent=x;output.appendChild(d);output.scrollTop=output.scrollHeight}
+function prompt(){document.getElementById("prompt").textContent=os==="Linux"?"root@installer:~#":"C:\\Installer>"}
+function update(){
+ version.innerHTML=versions[os].map(v=>`<option>${v}</option>`).join("");
+ document.getElementById("mode").textContent=os==="Linux"?"LINUX CLI":"WINDOWS GUI";
+ document.getElementById("installInfo").textContent=`Siap menginstal ${version.value} (simulasi).`;
+ prompt();renderOS()
+}
+function renderOS(){
+ if(os==="Linux"){
+   screen.className="linux-screen";
+   screen.textContent=`GNU/Linux CLI\n${version.value}\n\nroot@localhost:~# _\n\n[Terminal mode aktif]\nIP: ${net.ip}\nDNS: ${net.dns}`;
+ }else{
+   screen.className="windows";
+   screen.innerHTML=`<div class="win-top"><b>Windows Setup</b><span>— □ ×</span></div><div class="win-main"><div class="win-card"><h2>${version.value}</h2><p>Windows Graphical Setup</p><p>Network: ${net.ip}</p><p>DNS: ${net.dns}</p><div class="win-progress"><div class="win-fill" id="wf"></div></div><p id="wt">Ready to install</p></div></div>`;
+ }
+}
+function run(raw){
+ let c=raw.trim();if(!c)return;print((os==="Linux"?"root@installer:~# ":"C:\\Installer> ")+c);
+ let a=c.split(/\s+/),x=a[0].toLowerCase(), args=a.slice(1);
+ if(x==="help"){
+   print(os==="Linux"?"Perintah Linux: help, ip addr, ip set <ip> <mask> <gateway>, dns set <dns>, ping <host>, nslookup <domain>, install, clear":"Perintah Windows: help, ipconfig, ip set <ip> <mask> <gateway>, dns set <dns>, ping <host>, nslookup <domain>, install, cls");
+ }else if(x==="ip"&&args[0]==="addr"){
+   print(`eth0\\n  inet ${net.ip}\\n  mask ${net.mask}\\n  gateway ${net.gw}`);
+ }else if(x==="ipconfig"){
+   print(`Ethernet adapter\\n  IPv4 Address : ${net.ip}\\n  Subnet Mask  : ${net.mask}\\n  Gateway      : ${net.gw}`);
+ }else if(x==="ip"&&args[0]==="set"&&args.length>=4){
+   net.ip=args[1];net.mask=args[2];net.gw=args[3];print("OK: IP, subnet, dan gateway berhasil dikonfigurasi.");renderOS();
+ }else if(x==="dns"&&args[0]==="set"&&args[1]){
+   net.dns=args[1];print("OK: DNS berhasil dikonfigurasi: "+net.dns);renderOS();
+ }else if(x==="ping"){
+   print(args[0]?`PING ${args[0}\\nReply: OK (simulasi)`:"Usage: ping <host>");
+ }else if(x==="nslookup"){
+   print(args[0]?`Server: ${net.dns}\\nName: ${args[0]}\\nAddress: simulated-result`:"Usage: nslookup <domain>");
+ }else if((x==="clear"&&os==="Linux")||(x==="cls"&&os==="Windows")) output.innerHTML="";
+ else if(x==="install"){startInstall()}
+ else print("Perintah tidak ditemukan. Ketik help.");
+}
+function startInstall(){
+ let b=document.getElementById("install");b.disabled=true;let p=0;
+ print(`Memulai instalasi ${version.value}...`);
+ if(os==="Linux"){screen.className="linux-screen";screen.textContent=`Linux Installer CLI\\n${version.value}\\n\\nPreparing installation...\\n0%`}
+ let t=setInterval(()=>{p+=5;
+ document.getElementById("installInfo").textContent=`Installing ${version.value}... ${p}%`;
+ if(os==="Linux")screen.textContent=`Linux Installer CLI\\n${version.value}\\n\\nInstalling packages...\\n${p}%\\n\\nroot@installer:~#`;
+ else {let f=document.getElementById("wf");if(f)f.style.width=p+"%";let wt=document.getElementById("wt");if(wt)wt.textContent=`Installing... ${p}%`;}
+ if(p>=100){clearInterval(t);b.disabled=false;document.getElementById("installInfo").textContent=`${version.value} selesai diinstal (simulasi).`;print("Installation completed successfully.");renderOS()}},120)
+}
+document.querySelectorAll(".os").forEach(b=>b.onclick=()=>{document.querySelectorAll(".os").forEach(z=>z.classList.remove("active"));b.classList.add("active");os=b.dataset.os;update()});
+version.onchange=()=>document.getElementById("installInfo").textContent=`Siap menginstal ${version.value} (simulasi).`;
+cmd.onkeydown=e=>{if(e.key==="Enter"){run(cmd.value);cmd.value=""}};
+document.getElementById("clear").onclick=()=>{output.innerHTML="";cmd.focus()};
+document.getElementById("focus").onclick=()=>cmd.focus();
+document.getElementById("install").onclick=startInstall;
+update();print("Terminal siap. Ketik help untuk melihat perintah.");cmd.focus();
+</script>
+</body>
+</html>
